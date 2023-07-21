@@ -1,3 +1,7 @@
+"""
+Barcode sampling used to generate Fig. S16D
+"""
+
 import numpy as np 
 import random
 

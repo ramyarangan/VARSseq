@@ -1,3 +1,7 @@
+"""
+Generate sample intron variant sequences, predict, and write out their secondary structures
+"""
+
 import sys
 from arnie.bpps import bpps 
 from arnie.mfe import mfe
@@ -5,14 +9,15 @@ import numpy as np
 import random
 from secstruct_util import *
 
-intron_seq_fasta = sys.argv[1]
-intron_dotbracket_file = sys.argv[2]
-intron_bpp_matrix = sys.argv[3]
-mfe_output_pref = sys.argv[4]
-library_end = int(sys.argv[5])
-num_structs = int(sys.argv[6])
-node_list_file = sys.argv[7]
+intron_seq_fasta = sys.argv[1] # E.g. intron_info/rps9b/rps9b.fasta
+intron_dotbracket_file = sys.argv[2] # E.g. intron_info/rps9b/rps9b_secstruct.txt
+intron_bpp_matrix = sys.argv[3] # E.g. intron_info/rps9b/rps9b_bpp.csv
+mfe_output_pref = sys.argv[4] # Output prefix for secondary structure MFE files
+library_end = int(sys.argv[5]) # Library's 3' end in the fasta sequence
+num_structs = int(sys.argv[6]) # Number of secondary structures to generate per variant
+node_list_file = sys.argv[7] # E.g. intron_info/rps9b/rps9b_var_list.txt
 
+# Randomly generate a new sequence replacing n nucleotides at pos_list positions in seq
 def vary_pos_random(pos_list, seq, n):
 	matches_curseq = True
 	pos_sample = []
@@ -29,6 +34,7 @@ def vary_pos_random(pos_list, seq, n):
 
 	return pos_sample, new_nts
 
+# Randomly scramble n nucleotides in pos_list positions in seq
 def vary_pos_scramble(pos_list, seq, n):
 	matches_curseq = True
 	pos_sample = []
@@ -47,6 +53,7 @@ def vary_pos_scramble(pos_list, seq, n):
 
 	return pos_sample, shuffle_nts
 
+# Get base-pair partners for the variant positions and compensatory mutations
 def get_compens_muts(stem_list, var_pos, var_nts):
 	comp_nts = np.copy(var_nts)
 	comp_nts[var_nts == 'A'] = ['U']
@@ -67,8 +74,8 @@ def get_compens_muts(stem_list, var_pos, var_nts):
 # given a stem list, generate randomized variants that: 
 # destabilize all the stems
 # have compensatory mutants if available
-# -- generate random variants through scrambles, or by mutating a max of N residues per stem
-# -- predict and save MFE structures
+# generate random variants through scrambles, or by mutating a max of N residues per stem
+# predict and save MFE structures
 def write_stem_var_mfes(stem_list, seq, library_end, out_file, \
 	perc_mutate=1, max_iter=1000, do_scramble=False):
 	f = open(out_file, 'a')
@@ -130,10 +137,12 @@ def write_stem_var_mfes(stem_list, seq, library_end, out_file, \
 			test_compens_variant[var_pos] = var_vals
 			test_compens_variant[comp_pos] = comp_vals
 
+		# Write out variant candidate sequences and MFEs
 		mfe_variant = mfe(test_variant, package='contrafold')
 		f.write("Variant: %s\n" % ''.join(test_variant))
 		f.write("%s\n" % mfe_variant)
 
+		# Write out compensatory variant candidate sequences and MFEs 
 		if do_compens:
 			mfe_compens_variant = mfe(test_compens_variant, package='contrafold')
 			f.write("Compensatory: %s\n" % ''.join(test_compens_variant))
@@ -185,7 +194,7 @@ def write_junction_var_mfes(junctions, seq, library_end, out_file, \
 
 	f.close()
 
-
+# Iterate through all node lists and generate / write variant sequences and MFEs
 def write_vars_from_lists(node_lists, nt_to_node_dict, bpp_matrix, intron_seq):
 	for (node_list, perc_change) in node_lists:
 		stems, junctions = get_stems_junctions_from_nodelist(node_list, nt_to_node_dict, bpp_matrix)

@@ -4,18 +4,22 @@ from arnie.mfe import mfe
 from secstruct_util import *
 import random 
 
-intron_seq_fasta = sys.argv[1]
-intron_dotbracket_file = sys.argv[2]
-intron_bpp_matrix = sys.argv[3]
-node_lists_file = sys.argv[4]
-mfe_dir = sys.argv[5]
-barcode_file = sys.argv[6]
-full_seq_file = sys.argv[7] # Should include 5'UTR and 50nt past intron
-variant_outfile = sys.argv[8]
-num_top_variants = int(sys.argv[9])
+intron_seq_fasta = sys.argv[1] # E.g. intron_info/rps9b/rps9b.fasta
+intron_dotbracket_file = sys.argv[2] # E.g. intron_info/rps9b/rps9b_secstruct.txt
+intron_bpp_matrix = sys.argv[3] # E.g. intron_info/rps9b/rps9b_bpp.csv
+node_lists_file = sys.argv[4] # E.g. intron_info/rps9b/rps9b_var_list.txt
+mfe_dir = sys.argv[5] # E.g. intron_info/rps9b/rps9b_varmfe_
+barcode_file = sys.argv[6] # E.g. barcodes/barcodes_n8_k3.20220511_104258.csv 
+full_seq_file = sys.argv[7] # Should include 5'UTR and 50nt past intron E.g. library_design/intron_info/rps9b/rps9b_fullseq.txt 
+variant_outfile = sys.argv[8] # Where selected variants will be written E.g. library_design/variants/rps9b_variants.csv
+num_top_variants = int(sys.argv[9]) # Number of variant sequences to choose per variant type
 
+# Length of library sequences that will be ordered
 LIB_SIZE = 300
 
+# Score a variant MFE against the wildtype MFE, expecting that the nucleotides in 
+# the unpaired list should be unpaired in the variant MFE, and otherwise the wildtype
+# MFE should be the same as the variant MFE.
 def run_mfe_checks(mfe_variant, mfe_wt, bp_matrix_wt, unpaired=[]):
 	bp_matrix_variant = get_bp_matrix(mfe_variant)
 
@@ -63,15 +67,18 @@ def run_mfe_checks(mfe_variant, mfe_wt, bp_matrix_wt, unpaired=[]):
 
 	return var_region_stats, cons_region_stats
 
+# Combine variant and conserved region stats into a score
 def get_score(var_region_stats, cons_region_stats):
 	var_region_errors = var_region_stats[0] + var_region_stats[1]
 	(_, num_fn_bp, num_fp_bp, _) = cons_region_stats
 	cons_region_errors = num_fn_bp + 0.5 * num_fp_bp
 	return var_region_errors + cons_region_errors
 
+# Combine variant and compensatory sequence scores into a total score
 def get_score_var_compens(score_variant, score_compens):
 	return score_variant + score_compens
 
+# Get all scores for variants and compensatory variants
 def get_variant_scores(all_variants, all_compens_variants, mfe_wt, \
 	bp_matrix_wt, unpaired):
 	has_compens = len(all_compens_variants) > 0
@@ -102,9 +109,12 @@ def get_variant_scores(all_variants, all_compens_variants, mfe_wt, \
 
 	return mfe_check_scores, total_scores
 
+# Currently base-pair probability matrix checks are unimplemented, and individual
+# variants' BPP matrices are checked in variants/check_variants.py
 def check_bpp(bpp_matrix_wt, variant, bpp_perc_change, unpaired=[]):
 	return True
 
+# Check for restriction sites used in library cloning
 def has_restriction_sites(seq):
 	# BglII: AGATCT
 	for ii in range(len(seq) - 6):
@@ -123,6 +133,7 @@ def has_restriction_sites(seq):
 
 	return False
 
+# Get top scoring variants for one stem / junction set
 def get_top_variants(node_list, perc_change, stems, junctions, 
 	mfe_wt, bp_matrix_wt, bpp_matrix_wt, bpp_perc_change=0.2):
 	print("Getting top variants for:")
@@ -133,6 +144,8 @@ def get_top_variants(node_list, perc_change, stems, junctions,
 	nodelist_lines = f.readlines()
 	f.close()
 
+	# Get all candiate variant sequences, MFE's, compensatory variant
+	# sequences, and MFE's from the appropriate node list file
 	all_variants = []
 	all_secstructs = []
 	all_compens_variants = []
@@ -156,12 +169,15 @@ def get_top_variants(node_list, perc_change, stems, junctions,
 	if has_compens and len(all_compens_variants) != len(all_variants):
 		print("Warning: Not all variants had compensatory variant")
 
+	# Get list of nucleotides that should be unpaired relative to wildtype by
+	# variants in this stem / junction set
 	unpaired = []
 	for stem in stems:
 		unpaired += stem.strand1_nts + stem.strand2_nts
 	for junction in junctions:
 		unpaired += junction.nts
 
+	# Get variant scores for current candidate variants
 	mfe_check_scores, total_scores = get_variant_scores(all_secstructs, \
 		all_compens_secstructs, mfe_wt, bp_matrix_wt, unpaired)
 
@@ -186,7 +202,7 @@ def get_top_variants(node_list, perc_change, stems, junctions,
 	final_compens_structs = []
 	final_compens_variant_set = set()
 	final_scores = []
-	# Get 2N variants if compensatory variants are not present, otherwise
+	# Accumulate 2N variants if compensatory variants are not present, otherwise
 	# get N of each.
 	num_variants = num_top_variants
 	if not has_compens:
@@ -241,6 +257,7 @@ def get_top_variants(node_list, perc_change, stems, junctions,
 	return final_variants, final_structs, final_compens_variants, final_compens_structs, final_scores
 
 
+# Score the number of base-pairs that have been changed due to the addition of a random barcode
 def score_mfe_barcode(mfe_variant, var_intron_pos, mfe_barcode, bc_intron_pos, intron_len):
 	bp_matrix_variant = get_bp_matrix(mfe_variant)
 	bp_matrix_barcode = get_bp_matrix(mfe_barcode)
@@ -269,6 +286,9 @@ def score_mfe_barcode(mfe_variant, var_intron_pos, mfe_barcode, bc_intron_pos, i
 	return score
 
 
+# Add a barcode to the variant at barcode_pos that has not been used thus far
+# Iterate through 25 versions to find the barcode with the best score (smallest disruptions to variant
+# base-pairing pattern)
 def add_unique_barcode(variant, barcodes, full_seq, intron_pos, barcode_pos, variant_pos):
 	variant = variant[variant_pos:]
 	full_seq[intron_pos:(intron_pos + len(variant))] = list(variant)
@@ -307,8 +327,11 @@ def add_unique_barcode(variant, barcodes, full_seq, intron_pos, barcode_pos, var
 	
 	return ''.join(new_full_seq), new_barcodes
 
+# Get the library variant sequence given the intron variants, and using information on 
+# the desired library sequence position and intron context sequence in the full_seq file
 # Add randomized barcode, verify that secondary structure is constant
 def get_full_variants(all_variants):
+	# Read in the candidate barcodes (pre-screened for high mutual edit distance)
 	f = open(barcode_file)
 	barcode_lines = f.readlines()[1:]
 	f.close()
@@ -317,6 +340,7 @@ def get_full_variants(all_variants):
 	for barcode_line in barcode_lines:
 		barcodes += [barcode_line.split(',')[0]]
 
+	# Get information on full intron sequence context and library sequence position
 	f = open(full_seq_file)
 	full_seq_lines = f.readlines()
 	f.close()
@@ -329,6 +353,7 @@ def get_full_variants(all_variants):
 		variant_pos = int(full_seq_lines[0].split(" ")[3])
 	all_full_variants = []
 
+	# Add barcodes and obtain the full library sequence 
 	print("Adding barcodes")
 	for ii, (variants, structs, compens_variants, compens_structs, scores, \
 		node_list, perc_change) in enumerate(all_variants):
@@ -351,6 +376,7 @@ def get_full_variants(all_variants):
 
 	return all_full_variants
 
+# Write full variant library sequences, MFE's and scores to output file
 def write_variants(all_variants):
 	f = open(variant_outfile, 'w')
 
