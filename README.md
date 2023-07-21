@@ -23,9 +23,9 @@ This repository contains scripts for:
 
 Sample commands for designing variant library sequences: 
 * First sample candidate variant sequences and predict their secondary structures: 
-`python library_design/generate_variant_mfes.py library_design/intron_info/rps9b/rps9b.fasta library_design/intron_info/rps9b/rps9b_secstruct.txt library_design/intron_info/rps9b/rps9b_bpp.csv library_design/output_mfes/rps9b_varmfe_ 238 10000 library_design/intron_info/rps9b/rps9b_var_list.txt`
+	* `python library_design/generate_variant_mfes.py library_design/intron_info/rps9b/rps9b.fasta library_design/intron_info/rps9b/rps9b_secstruct.txt library_design/intron_info/rps9b/rps9b_bpp.csv library_design/output_mfes/rps9b_varmfe_ 238 10000 library_design/intron_info/rps9b/rps9b_var_list.txt`
 * Then score candidate variant sequences:
-`python library_design/score_variants.py library_design/intron_info/rps9b/rps9b.fasta library_design/intron_info/rps9b/rps9b_secstruct.txt library_design/intron_info/rps9b/rps9b_bpp.csv library_design/intron_info/rps9b/rps9b_var_list.txt library_design/output_mfes/rps9b_varmfe_ library_design/barcodes/barcodes_n8_k3.20220511_104258.csv library_design/intron_info/rps9b/rps9b_fullseq.txt library_design/variants/rps9b_variants.csv 4`
+	* `python library_design/score_variants.py library_design/intron_info/rps9b/rps9b.fasta library_design/intron_info/rps9b/rps9b_secstruct.txt library_design/intron_info/rps9b/rps9b_bpp.csv library_design/intron_info/rps9b/rps9b_var_list.txt library_design/output_mfes/rps9b_varmfe_ library_design/barcodes/barcodes_n8_k3.20220511_104258.csv library_design/intron_info/rps9b/rps9b_fullseq.txt library_design/variants/rps9b_variants.csv 4`
 
 Detailed descriptions for the input and output variables and data types for these commands are included in the `library_design/` directory's README.
 
