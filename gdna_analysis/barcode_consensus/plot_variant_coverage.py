@@ -1,3 +1,7 @@
+"""
+Make barplots showing the number of variant sequences with different barcode coverage levels
+python plot_variant_coverage.py
+"""
 from matplotlib import pyplot as plt
 import numpy as np
 

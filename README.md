@@ -33,7 +33,7 @@ We recommend carrying out sequence design with the help of a high performance cl
 
 # Producing figures 
 
-Each subdirectory includes a README detailing how to produce analysis figures where relevant, along with example figures from each command. 
+Each subdirectory includes a figures directory with example analysis figures and a README detailing how to produce these figures.
 
 # Requirements
 * scipy, numpy, matplotlib, seaborn, pandas

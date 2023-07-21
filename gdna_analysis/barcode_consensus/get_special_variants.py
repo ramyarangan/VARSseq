@@ -1,3 +1,6 @@
+"""
+Get barcodes for consensus variant sequences that disrupt the QCR9 branchpoint sequence.
+"""
 import sys
 
 SEQ_MIN = 285
@@ -8,6 +11,7 @@ output_file = sys.argv[2]
 
 QCR9_SEQ = 'CTAAAATGGTATGT'
 
+# Get list of barcodes per consensus sequence
 def get_seq_to_barcodes_dict(fa_file):
 	f = open(fa_file)
 	fa_lines = f.readlines()
@@ -23,6 +27,7 @@ def get_seq_to_barcodes_dict(fa_file):
 			seq_to_barcodes[seq] = [barcode]
 	return seq_to_barcodes
 
+# Check if the intron is in the sequence but the branchpoint is mutated 
 def check_seq(seq, check_condition):
 	if check_condition == 'bp':
 		if (QCR9_SEQ in seq) and ('TACTAAC' not in seq):
@@ -34,6 +39,7 @@ def check_seq(seq, check_condition):
 		return False
 	return False
 
+# Get barcode sequences correspodning to mutations in the desired region
 def get_mutants(seq_to_barcodes, barcode_file, check_condition):
 	variants = []
 	num_barcodes = 0

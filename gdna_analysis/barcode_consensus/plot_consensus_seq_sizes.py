@@ -1,3 +1,8 @@
+"""
+Plots histogram of consensus sequence lengths using the ihist files output by bbmerge
+plot_consensus_seq_sizes.py consensus_size/ihist1.txt QCR9
+"""
+
 import sys
 from matplotlib import pyplot as plt
 

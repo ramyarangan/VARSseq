@@ -1,20 +1,32 @@
+"""
+Gets a histogram of the number of variant sequences with various number of barcodes represented in our gDNA sequencing data. 
+Notably, many of these variants (especially those with low barcode coverage) are mutants of our designed variant sequences. So
+sdditionally, for each sample, we count the number of barcodes represented for each designed variant sequence, and for each
+designed variant, we output a list of the corresponding barcode sequences along with their coverage in the dataset.
+
+This data is used in plot_variant_coverage.py to generate Fig. S17B. 
+
+python count_variants.py consensus_fa/S1_consensus.fa ../ref/qcr9_complete.fa barcode_sets/S1_designed_var_barcodes.txt
+"""
 import sys
 from matplotlib import pyplot as plt
 import numpy as np 
 
+# Minimum and maximum lengths required for consensus sequences to be counted (our library size is 300)
 SEQ_MIN = 285
 SEQ_MAX = 305
 
 fa_file = sys.argv[1]
 designed_var_file = ""
 if len(sys.argv) > 2:
-	designed_var_file = sys.argv[2]
-	designed_var_barcode_file = sys.argv[3]
+	designed_var_file = sys.argv[2] # File specifying the designed variant sequences
+	designed_var_barcode_file = sys.argv[3] # Output file where barcodes for each variant sequence will be written
 
 f = open(fa_file)
 fa_lines = f.readlines()
 f.close()
 
+# Read in the designed variants
 designed_var_counts = {}
 designed_var_barcodes = {}
 if designed_var_file != "": 
@@ -27,6 +39,8 @@ if designed_var_file != "":
 		designed_var_counts[cur_designed_var] = 0
 		designed_var_barcodes[cur_designed_var] = []
 
+# Assemble barcode counts for all variant sequences with lengths in the expected range
+# Assemble barcode counts for all designed variant sequences
 seq_dict = {}
 for ii in range(int(len(fa_lines)/2)):
 	barcode_cov_line = fa_lines[ii * 2].replace('\n', '').replace('>', '')
@@ -45,6 +59,7 @@ for ii in range(int(len(fa_lines)/2)):
 
 freqs = np.array(list(seq_dict.values()))
 
+# Print number of variants by barcode coverage levels
 ge_1 = sum(freqs > 0)
 ge_2 = sum(freqs > 1)
 ge_3 = sum(freqs > 2)
@@ -54,6 +69,8 @@ ge_10 = sum(freqs > 9)
 print("At least (1, 2, 3, 5, 8, 10) barcodes: (%d, %d, %d, %d, %d, %d)" % \
 	(ge_1, ge_2, ge_3, ge_5, ge_8, ge_10))
 
+
+# Write out barcodes and coverage values for designed variant sequences
 f = open(designed_var_barcode_file, 'w')
 
 ii = 1
@@ -67,6 +84,7 @@ f.close()
 
 designed_var_freqs = np.array(list(designed_var_counts.values()))
 
+# Print number of designed variants by barcode coverage levels
 ge_0 = sum(designed_var_freqs > -1)
 ge_1 = sum(designed_var_freqs > 0)
 ge_3 = sum(designed_var_freqs > 2)

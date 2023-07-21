@@ -1,3 +1,7 @@
+"""
+Add coverage values per consensus sequence to the sequence fasta 
+python get_barcode_coverage.py consensus_tags/S1_tags_collated.txt consensus_fa/S1_consensus.fa consensus_fa/S1_consensus_coverage.txt
+"""
 import sys
 
 collated_tags_file = sys.argv[1]

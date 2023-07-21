@@ -1,3 +1,7 @@
+"""
+Filter consensus reads to remove blacklisted tags (more than one highly covered consensus sequence), and
+only keep the consensus sequence for each barcode with the maximum coverage
+"""
 import sys
 
 fq_file = sys.argv[1]
