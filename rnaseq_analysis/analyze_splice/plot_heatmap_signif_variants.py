@@ -260,7 +260,7 @@ def make_heatmap(var_barcode_spliced_file, var_group_file, plt_title, do_RI=True
 		fig_name += '_RI'
 	else:
 		fig_name += '_normmRNA'
-	# plt.savefig(fig_name + '.png', dpi=300)
+	plt.savefig(fig_name + '.png', dpi=300)
 	plt.show()
 
 
@@ -275,11 +275,6 @@ def plot_all_heatmaps(do_RI=True):
 		6: "ACT1", 
 		7: "RPS14B",
 		8: "RPL36B"
-	}
-
-	gene_names = {
-		1: "QCR9", 
-		2: "RPL28"
 	}
 
 	for ii in gene_names.keys():
@@ -299,11 +294,6 @@ def get_all_signif_stats(do_RI=True):
 		6: "ACT1", 
 		7: "RPS14B",
 		8: "RPL36B"
-	}
-
-	gene_names = {
-		1: "QCR9", 
-		2: "RPL28"
 	}
 
 	all_stem_signif = 0
@@ -326,7 +316,7 @@ def get_all_signif_stats(do_RI=True):
 	print("%d significant effects in %d loops" % (all_loop_signif, all_loop_cnt))
 
 
-# plot_all_heatmaps(do_RI=True)
+plot_all_heatmaps(do_RI=True)
 plot_all_heatmaps()
 
 get_all_signif_stats()
