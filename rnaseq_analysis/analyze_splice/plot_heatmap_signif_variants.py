@@ -1,9 +1,10 @@
 """
 Make heatmaps showing p-values for all comparisons between wildtype, variant, and rescue groups 
 Can compare using RI fractions or normalized mRNA spliced levels
-Can compare with various statistical tests
-Plot violin plots for all wildtype splicing distributions
+
+python plot_heatmap_signif_variants.py
 """
+
 import numpy as np 
 import seaborn as sns
 from matplotlib import pyplot as plt 
@@ -12,6 +13,8 @@ import pandas as pd
 
 MIN_UMI_COV = 10
 
+
+# Get the per variant and wildtype lists of per-barcode RI or mRNA stats
 def get_variant_stats(var_barcode_spliced_file, do_RI=True):
 
 	f = open(var_barcode_spliced_file)
@@ -48,6 +51,8 @@ def get_variant_stats(var_barcode_spliced_file, do_RI=True):
 
 	return var_stats
 
+
+# Get lists of per-barcode stats by stem set / junction set
 def get_group_stats(var_stats, var_group_file):
 	var_groups = {}
 	group_stats = {}
@@ -59,6 +64,7 @@ def get_group_stats(var_stats, var_group_file):
 
 	ii = 0
 	while ii < len(var_group_lines):
+		# Collect all the variant sequence ID's for a given stem / junction set
 		group_id_line = var_group_lines[ii]
 		group_id = (group_id_line.split(' ')[0], group_id_line.split(' ')[1])
 		num_vars = int(group_id_line.split(' ')[2].replace('\n', ''))
@@ -71,6 +77,8 @@ def get_group_stats(var_stats, var_group_file):
 			var_id = int(var_group_lines[ii].split(' ')[0])
 			var_ids += [var_id]
 		unique_var_ids = list(set(var_ids))
+
+		# Get all the RI or mRNA stats per stem / junction set
 		cur_group_stats = []
 		for var_id in unique_var_ids:
 			if var_id in var_stats.keys():
@@ -83,34 +91,15 @@ def get_group_stats(var_stats, var_group_file):
 
 	return group_stats, group_labels
 
+
 def mean_statistic(x, y, axis):
 	return np.mean(x, axis=axis) - np.mean(y, axis=axis)
 
-def compare_stats_signif(stats1, stats2, signif_type="ttest"):
-
-	pval = np.nan
-	if signif_type == "ttest": 
-		signif_test = stats.ttest_ind(stats1, stats2, alternative='two-sided')
-		pval = signif_test.pvalue
-	elif signif_type == "mw":
-		signif_test = stats.mannwhitneyu(x=stats1, y=stats2, alternative='two-sided')
-		pval = signif_test.pvalue
-	elif signif_type == "chisq":
-		stats.fisher_exact(np.array([[sum(stats1 > 0.2), sum(stats1 <= 0.2)], \
-		[sum(stats2 > 0.2), sum(stats2 <= 0.2)]]))
-		pval = signif_test.pvalue
-	elif signif_type == "mw_cutoff":
-		signif_test = stats.mannwhitneyu(x=(stats1 > 0.2), y=(stats2 > 0.2), alternative='two-sided')
-		pval = signif_test.pvalue
-	elif signif_type == "mw_nonzero":
-		if np.sum(stats1 > 0.01) > 1 and np.sum(stats2 > 0.01) > 1:
-			signif_test = stats.mannwhitneyu(x=(stats1[stats1 > 0.01]), y=(stats2[stats2 > 0.01]), \
-				alternative='two-sided')
-			pval = signif_test.pvalue
-	elif signif_type == "perm":
-		signif_test = stats.permutation_test((stats1, stats2), mean_statistic, n_resamples=100000, \
+# Compare two lists using the permutation test with the mean statistic
+def compare_stats_signif(stats1, stats2):
+	signif_test = stats.permutation_test((stats1, stats2), mean_statistic, n_resamples=100000, \
 			vectorized=True)
-		pval = signif_test.pvalue
+	pval = signif_test.pvalue
 
 	is_greater = 1
 	if np.mean(stats1) > np.mean(stats2): 
@@ -120,7 +109,8 @@ def compare_stats_signif(stats1, stats2, signif_type="ttest"):
 
 	return is_greater, pval, min_size
 
-def compare_groups(group_stats, wt_stats, group_labels, signif_type="ttest"):
+# Compare stats for variant vs wildtype, variant vs rescue, and rescue vs wildtype
+def compare_groups(group_stats, wt_stats, group_labels):
 	all_group_comps = []
 	all_group_labels = []
 
@@ -129,15 +119,17 @@ def compare_groups(group_stats, wt_stats, group_labels, signif_type="ttest"):
 		if group_id[1] != 'variant':
 			continue
 
+		# For each variant, get stats for the rescue variant if available
 		var_stats = group_stats[group_id]
 		compens_id = (group_id[0], 'compens')
 		compens_stats = None
 		if compens_id in group_stats.keys():
 			compens_stats = group_stats[compens_id]
 
+		# Compare variant vs wildtype
 		wt_var_compare = (np.nan, np.nan, 0)
 		if len(wt_stats) > 1 and len(var_stats) > 1:
-			is_greater, p_val, min_size = compare_stats_signif(wt_stats, var_stats, signif_type=signif_type)
+			is_greater, p_val, min_size = compare_stats_signif(wt_stats, var_stats)
 			wt_var_compare = (is_greater, p_val, min_size)
 			if np.isnan(wt_var_compare[1]):
 				wt_var_compare = (is_greater, 1, min_size)
@@ -145,28 +137,38 @@ def compare_groups(group_stats, wt_stats, group_labels, signif_type="ttest"):
 		wt_compens_compare = (np.nan, np.nan, 0)
 		var_compens_compare = (np.nan, np.nan, 0)
 		if len(wt_stats) > 1 and (compens_stats is not None and len(compens_stats) > 1):
-			is_greater, p_val, min_size = compare_stats_signif(wt_stats, compens_stats, signif_type=signif_type)
+			# Compare wildtype vs rescue
+			is_greater, p_val, min_size = compare_stats_signif(wt_stats, compens_stats)
 			wt_compens_compare = (is_greater, p_val, min_size)
 			if np.isnan(wt_compens_compare[1]):
 				wt_compens_compare = (is_greater, 1, min_size)
 
-			is_greater, p_val, min_size = compare_stats_signif(var_stats, compens_stats, signif_type=signif_type)
+			# Compare variant vs rescue
+			is_greater, p_val, min_size = compare_stats_signif(var_stats, compens_stats)
 			var_compens_compare = (is_greater, p_val, min_size)
 			if np.isnan(var_compens_compare[1]):
 				var_compens_compare = (is_greater, 1, min_size)
 
+		# Collect all comparisons' p-values
 		all_group_comps += [(wt_var_compare, wt_compens_compare, var_compens_compare)]
 		all_group_labels += [group_labels[group_id]]
 
 	return all_group_comps, all_group_labels
 
+
+# Get a count of all significant comparisons (comparing to pval_cutoff) 
+# between variant and wildtype sequences
 def get_signif_stats(var_barcode_spliced_file, var_group_file, do_RI=True, do_both=True, pval_cutoff = 0.05):
+	# Get all stats grouped by stem / junction set 
 	var_stats = get_variant_stats(var_barcode_spliced_file, do_RI=do_RI)
 	group_stats, group_labels = get_group_stats(var_stats, var_group_file)
 
+	# Get p-values for comparisons between variant, rescue, and wildtype sequences
 	all_group_comps, all_group_labels = \
-		compare_groups(group_stats, var_stats['wt'], group_labels, signif_type="perm")
+		compare_groups(group_stats, var_stats['wt'], group_labels)
 
+	# Compare sequences using the other metric 
+	# (count a stem / junction set as significant if there is a signif change in either RI or mRNA)
 	all_group_comps_2 = None 
 	all_group_labels_2 = None
 	if do_both:
@@ -174,8 +176,9 @@ def get_signif_stats(var_barcode_spliced_file, var_group_file, do_RI=True, do_bo
 		group_stats, group_labels = get_group_stats(var_stats, var_group_file)
 
 		all_group_comps_2, all_group_labels_2 = \
-			compare_groups(group_stats, var_stats['wt'], group_labels, signif_type="perm")
+			compare_groups(group_stats, var_stats['wt'], group_labels)
 
+	# Count the number of significant shifts along with the totals for stems and junctions
 	stem_signif = 0
 	loop_signif = 0
 	stem_cnt = 0
@@ -206,16 +209,22 @@ def get_signif_stats(var_barcode_spliced_file, var_group_file, do_RI=True, do_bo
 
 	return stem_signif, loop_signif, stem_cnt, loop_cnt
 
+
+# Create a heatmap showing the comparisons between variant, rescue, and wildtype sequences
 def make_heatmap(var_barcode_spliced_file, var_group_file, plt_title, do_RI=True):
 	var_stats = get_variant_stats(var_barcode_spliced_file, do_RI=do_RI)
 	group_stats, group_labels = get_group_stats(var_stats, var_group_file)
 
 	all_group_comps, all_group_labels = \
-		compare_groups(group_stats, var_stats['wt'], group_labels, signif_type="perm")
+		compare_groups(group_stats, var_stats['wt'], group_labels)
 
+	# Keep track of direction of comparison, significance
 	heatmap_arr = []
+	# Keep track of minimum number of barcodes included in the comparison
 	size_arr = []
+	# Keep track of stem / junction set label
 	labels = []
+
 	for ii, group_comp in enumerate(all_group_comps):
 		if "wt" in all_group_labels[ii]:
 			continue
@@ -223,6 +232,7 @@ def make_heatmap(var_barcode_spliced_file, var_group_file, plt_title, do_RI=True
 		sign = 1
 		if do_RI:
 			sign = -1
+		# Color heatmap by log p-value, with sign indicating direction of effect
 		signed_log_p = [sign * x[0] * np.log10(x[1]) for x in group_comp] 
 
 		heatmap_arr += [signed_log_p]
@@ -230,6 +240,7 @@ def make_heatmap(var_barcode_spliced_file, var_group_file, plt_title, do_RI=True
 	heatmap_arr = np.array(heatmap_arr)
 	size_arr = np.array(size_arr)
 
+	# Generate heatmap
 	comparison_labels=['WT vs Var', 'WT vs Compens', 'Var vs Compens']
 
 	cmap = sns.color_palette("vlag", as_cmap=True)
@@ -249,28 +260,11 @@ def make_heatmap(var_barcode_spliced_file, var_group_file, plt_title, do_RI=True
 		fig_name += '_RI'
 	else:
 		fig_name += '_normmRNA'
-	plt.savefig(fig_name + '.png', dpi=300)
+	# plt.savefig(fig_name + '.png', dpi=300)
 	plt.show()
 
 
-def plot_all_wt_violin_plots():
-	variant_type = []
-	RI_frac = []
-	for ii in range(1, 9):
-		var_stats = get_variant_stats("var_barcode_spliced/S" + str(ii) + "_rd1_var_barcode_spliced.txt")
-
-		wt_stats = var_stats['wt']
-		variant_type += [gene_names[ii]] * len(wt_stats)
-		RI_frac += list(wt_stats)
-
-	data_dict = {'variant_type': variant_type, 'RI_frac': RI_frac}
-
-	df = pd.DataFrame(data_dict)
-	sns.violinplot(x='variant_type', y='RI_frac', data=df, scale='width', cut=0.5)
-	sns.swarmplot(x='variant_type', y='RI_frac', data=df, color='lightgray', s=2.5)
-	plt.show()
-
-
+# Plot all heatmaps for all constructs
 def plot_all_heatmaps(do_RI=True):
 	gene_names = {
 		1: "QCR9", 
@@ -283,12 +277,18 @@ def plot_all_heatmaps(do_RI=True):
 		8: "RPL36B"
 	}
 
-	for ii in range(1, 9):
+	gene_names = {
+		1: "QCR9", 
+		2: "RPL28"
+	}
+
+	for ii in gene_names.keys():
 		idx = str(ii)
 		make_heatmap("var_barcode_spliced/S" + idx + "_rd1_var_barcode_spliced.txt", \
 			"var_group_files/S" + idx + "_var_groups.txt", gene_names[ii], do_RI=do_RI)
 
 
+# Count all significantly different variant vs wildtype sequences across all constructs
 def get_all_signif_stats(do_RI=True):
 	gene_names = {
 		1: "QCR9", 
@@ -301,12 +301,17 @@ def get_all_signif_stats(do_RI=True):
 		8: "RPL36B"
 	}
 
+	gene_names = {
+		1: "QCR9", 
+		2: "RPL28"
+	}
+
 	all_stem_signif = 0
 	all_loop_signif = 0
 	all_stem_cnt = 0
 	all_loop_cnt = 0
 
-	for ii in range(1, 9):
+	for ii in gene_names.keys():
 		idx = str(ii)
 		print(gene_names[ii])
 		stem_signif, loop_signif, stem_cnt, loop_cnt = \
@@ -321,10 +326,7 @@ def get_all_signif_stats(do_RI=True):
 	print("%d significant effects in %d loops" % (all_loop_signif, all_loop_cnt))
 
 
-# make_heatmap("var_barcode_spliced/ACT1_var_barcode_spliced.txt", \
-# 	"S6_var_groups_combined.txt", "ACT1", do_RI=True)
-
 # plot_all_heatmaps(do_RI=True)
+plot_all_heatmaps()
 
-# get_all_signif_stats(do_RI=True)
 get_all_signif_stats()

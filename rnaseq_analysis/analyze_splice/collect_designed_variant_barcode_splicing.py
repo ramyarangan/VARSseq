@@ -1,12 +1,17 @@
 """
-Get barcodes 
+Using the barcode-variant correspondences from gDNA sequencing and the per-barcode per-UMI 
+splicing data, collect and write out splicing statistics per variant.
+Also prints out stats on the number of variants covered by at least 10 reads and at least 3 barcodes.
+
+Example:
+python collect_designed_variant_barcode_splicing.py ../../gdna_analysis/barcode_consensus/S8_designed_var_barcodes.txt barcode_umi_tables_tophat/S8_rd1_barcode_umi_spliced.txt var_barcode_spliced/S8_rd1_var_barcode_spliced.txt
 """
 import sys
 import numpy as np 
 
-designed_var_barcode_file = sys.argv[1]
-barcode_umi_spliced_file = sys.argv[2]
-per_var_barcode_spliced_file = sys.argv[3]
+designed_var_barcode_file = sys.argv[1] # Input: Barcode-variant correspondences from gDNA sequencing
+barcode_umi_spliced_file = sys.argv[2] # Input: Per-barcode per-UMI splicing statistics from RNA sequencing
+per_var_barcode_spliced_file = sys.argv[3] # Output: Per-variant per-barcode splicing statistics 
 
 f = open(designed_var_barcode_file)
 designed_var_lines = f.readlines()
@@ -15,6 +20,8 @@ f.close()
 designed_var_dict = {}
 barcode_stats_dict = {}
 
+# Collect all barcodes corresponding to each variant sequence and prepare to
+# read in splicing statistics for each one
 ii = 0
 cur_var = 1
 while (ii < len(designed_var_lines)):
@@ -23,6 +30,7 @@ while (ii < len(designed_var_lines)):
 	barcode_list = []
 	for jj in range(num_barcodes):
 		ii += 1
+		# Also get the coverage from gDNA sequencing - transformation frequency
 		barcode_cov = designed_var_lines[ii].replace('\n', '')
 		barcode = barcode_cov.split(' ')[0]
 		cov = barcode_cov.split(' ')[1]
@@ -32,6 +40,7 @@ while (ii < len(designed_var_lines)):
 	ii += 1
 	cur_var += 1
 
+# Compute the total spliced, unspliced and other UMI's per barcode
 with open(barcode_umi_spliced_file) as f:
 	for line in f:
 		barcode = line.split(' ')[0]
@@ -48,12 +57,16 @@ with open(barcode_umi_spliced_file) as f:
 			barcode_stats = np.array([1, spliced, unspliced, other, 0])
 			barcode_stats_dict[barcode] += barcode_stats
 
+# Collect stats on coverage and splicing rates
 total_spliced = 0
-total_unspliced = 0
-num_covered = 0
-num_covered_barcodes = 0
+total_unspliced = 0 
+num_covered = 0 # Num variants with at least 10 reads
+num_covered_barcodes = 0 # Num variants with at least 3 barcodes
+
 f = open(per_var_barcode_spliced_file, 'w')
 
+# For each designed variant, write out the per-barcode 
+# UMI coverage (copies), spliced vs unspliced vs other read counts, and transformation frequency
 for designed_var, barcodes in designed_var_dict.items():
 	num_barcodes = 0
 	num_barcode_copies = 0
@@ -61,15 +74,11 @@ for designed_var, barcodes in designed_var_dict.items():
 	num_unspliced = 0
 	num_other = 0
 
-	# print("Var: %d\n" % designed_var)
 	f.write("Var: %d\n" % designed_var)
 	for barcode in barcodes:
 		(cur_copies, cur_spliced, cur_unspliced, cur_other, cov) = barcode_stats_dict[barcode]
 		if cur_copies > 0: 
 			f.write("%d %d %d %d %d %s\n" % (cur_copies, cur_spliced, cur_unspliced, cur_other, cov, barcode))
-		#if designed_var == 201:
-		#	if cur_copies > 0:
-		#		print("%d %d %d %d\n" % (cur_copies, cur_spliced, cur_unspliced, cur_other))
 		if cur_copies == 0:
 			continue
 		num_barcodes += 1

@@ -1,13 +1,15 @@
 """
 Used to make files in var_group_files/
 Groups variants by stem disruption set
+
+python make_combined_var_files.py ../../library_design/variants/final_variants/rps9a_variants.csv ../../gdna_analysis/ref/rps9a_complete.fa var_group_files/rps9a_var_groups.txt AGTACGT
 """
 import sys
 
-var_detail_file = sys.argv[1]
-var_file = sys.argv[2]
-var_group_file = sys.argv[3]
-fivess_seq = sys.argv[4]
+var_detail_file = sys.argv[1] # The designed library variants with info on different stem sets
+var_file = sys.argv[2] # Full library sequences including regions external to intron
+var_group_file = sys.argv[3] # Output file for variant sequences grouped by stem / junction disruption set
+fivess_seq = sys.argv[4] # 5' splice site sequence to find start of intron 
 
 f = open(var_detail_file)
 var_detail_lines = f.readlines()

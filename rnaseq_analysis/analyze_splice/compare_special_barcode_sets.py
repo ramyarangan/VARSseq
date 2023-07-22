@@ -1,7 +1,10 @@
 """
 Pairwise compare RI fraction between barcode sets in barcode_compare_set_file in violin plots, and 
 get significance of each pairwise comparison.
+
+python compare_special_barcode_sets.py barcode_umi_tables/S1_rd1_barcode_umi_spliced.txt ../../gdna_analysis/barcode_consensus/special_barcodes/qcr9_compare_wt_bp_mutant.txt
 """
+
 import sys
 import numpy as np 
 import pandas as pd 
@@ -11,9 +14,10 @@ import scipy.stats as stats
 
 MIN_UMI_COV = 10
 
-barcode_umi_spliced_file = sys.argv[1]
-barcode_compare_set_file = sys.argv[2]
+barcode_umi_spliced_file = sys.argv[1] # Barcode UMI stats
+barcode_compare_set_file = sys.argv[2] # List of two barcode sets to compare
 
+# Get spliced / unspliced read count stats for the barcodes with sufficient coverage
 def get_barcode_stats(all_barcodes, barcode_umi_spliced_file, verbose=False):
 	barcode_stats_dict = {}
 	for barcode in all_barcodes:
@@ -54,11 +58,13 @@ def get_barcode_stats(all_barcodes, barcode_umi_spliced_file, verbose=False):
 
 	return cur_barcode_stats
 
+# Get retained intron stats for the two barcode lists in barcode_compare_set_file
 def get_all_barcode_stats(barcode_umi_spliced_file, barcode_compare_set_file):
 	f = open(barcode_compare_set_file)
 	all_barcode_lines = f.readlines()
 	f.close()
 
+	# List of barcodes for each of the two compared variants
 	var_name_to_barcodes = {}
 	var_name = ""
 	barcodes = []
@@ -73,6 +79,7 @@ def get_all_barcode_stats(barcode_umi_spliced_file, barcode_compare_set_file):
 	if len(barcodes) > 0:
 		var_name_to_barcodes[var_name] = barcodes
 
+	# List of variant names and corresponding list of per-barcode RI stats
 	var_names = []
 	all_barcode_stats = []
 	for var_name in var_name_to_barcodes:
@@ -87,6 +94,7 @@ def get_all_barcode_stats(barcode_umi_spliced_file, barcode_compare_set_file):
 
 	return (var_names, all_barcode_stats)
 
+# Make violin plot comparing two sets' per-barcode RI fractions
 def make_violin_plot(var_names, all_barcode_stats):
 	variant_type = []
 	RI_frac = []
@@ -111,23 +119,19 @@ def make_violin_plot(var_names, all_barcode_stats):
 def mean_statistic(x, y, axis):
 	return np.mean(x, axis=axis) - np.mean(y, axis=axis)
 
+# Run a permutation test using the mean statistic to compare two arrays
 def get_perm_stat(arr1, arr2):
 	perm = stats.permutation_test((arr1, arr2), mean_statistic, n_resamples=100000, \
 		vectorized=True)
 	return perm
 
+# Print permutation test statistic 
 def compare_sets(stats1, stats2):
 	stats1 = np.array(stats1)
 	stats2 = np.array(stats2)
-	mw_bucket = stats.mannwhitneyu(x=(stats1 > 0.2), y=(stats2 > 0.2), alternative='two-sided')
-	mw = stats.mannwhitneyu(x=stats1, y=stats2, alternative='two-sided')
-	ttest = stats.ttest_ind(stats1, stats2, alternative='two-sided')
-
-	print(mw_bucket)
-	print(mw)
-	print(ttest)
 	print(get_perm_stat(stats1, stats2))
 
+# Compare all pairs of barcode sets
 def compare_all_sets(var_names, all_barcode_stats):
 	for ii in range(len(var_names)):
 		for jj in range(ii + 1, len(var_names)):
