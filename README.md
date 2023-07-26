@@ -35,6 +35,12 @@ We recommend carrying out sequence design with the help of a high performance cl
 
 Each subdirectory includes a figures directory with example analysis figures and a README detailing how to produce these figures.
 
-# Requirements
-* scipy, numpy, matplotlib, seaborn, pandas
-* arnie, Contrafold
+# Requirements and installation
+* scipy v1.10.1
+* numpy v1.24.3
+* matplotlib v3.7.1
+* seaborn v0.12.2
+* pandas v2.0.2
+* arnie: https://github.com/DasLab/arnie
+* Contrafold 2.00: http://contra.stanford.edu/contrafold/download.html
+Installation: Install all requirements (expected time: 1-2 hours) and then clone this repo.
